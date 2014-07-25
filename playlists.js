@@ -11,7 +11,7 @@
 /*===================================================================
 =            grab all the youtube playlists by relevance            =
 ===================================================================*/
-'use strict';
+"use strict";
 
 var http = require('http');
 var querystring = require('querystring');
