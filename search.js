@@ -17,19 +17,19 @@ var query = {
     'orderBy': 'relevance'
 };
 
-module.exports = function (search, type) {
+module.exports = function (options) {
     //creating a promise which we will give back
     var defer = q.defer();
 
     //add search to query object
-    query.q = search;
+    query.q = options.q;
 
     //convert options object to a query string
     var qs = querystring.stringify(query);
 
     //search url based on type specified
-    var search = type === 'playlist' ? playlistSearch : channelSearch;
-    var url = youtubeApi + search;
+    var srch = options.type === 'playlist' ? playlistSearch : channelSearch;
+    var url = youtubeApi + srch;
     var searchUrl = url + qs;
     var content = '';
 

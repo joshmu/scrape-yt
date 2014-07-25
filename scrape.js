@@ -1,9 +1,26 @@
 'use strict';
 
+/* youtube api v2 expiry */
+var expiry = new Date(2015, 3, 20);
+if(expiry.getTime() < new Date().getTime()) {
+    throw new Error('This module relies heavily on YouTube Data API v2 which will has been deprecated on April 20th 2015 to be replaced by version 3 of their API. =(');
+}
+
+/*==============================================================================
+=            download all youtube videos from a playlist or channel            =
+==============================================================================*/
+/**
+*
+* App: scrape-yt
+* Author: Josh Mu
+* Created: 25/07/2014
+*
+**/
+
 var yt = require('youtube-feeds');
 var prompt = require('prompt');
 var createMenu = require('terminal-menu');
-var searchYoutube = require('./playlists');
+var searchYoutube = require('./search');
 var fs = require('fs');
 var childProcess = require('child_process');
 var path = require('path');
@@ -38,22 +55,33 @@ prompt.get([{
     if (err) {
         defer.reject(err);
     }
+    type = results.type;     //store type of download selection
     defer.resolve(results);
 });
 
+//flow of events
 defer.promise
     .then(searchYoutube)
     .then(parseList)
     .then(showMenu)
     .then(getSelection)
-    .then(playlistOrChannel);
+    .then(playlistOrChannel)
+    .then(parseVideos)
+    .then(function(vids){
+        fs.writeFile('./test4.json', JSON.stringify(vids), function(){
+            console.log('saved');
+        });
+    })
+    .then(downloadSetup)
+    .then(function(vids) {
+        var defer = q.defer();
+        downloadVids(vids, 0, defer);
+        return defer.promise;
+    })
+    .then(end)
+    .then(null, console.error)
+    .done();
 
-function search(results) {
-    //store type selected
-    type = results.type.toLowerCase();
-    //search returns a promise =)
-    return searchYoutube(results.q, type);
-}
 
 // store query results
 var queryResults;
@@ -69,23 +97,36 @@ function playlistOrChannel(item) {
     return type === 'playlist' ? getPlaylist(item) : getChannel(item);
 }
 
+var total;
 function getChannel(item) {
-    console.log('getting channel for ', item);
+    var defer = q.defer();
+
+    var userId = item.author[0]['yt:userId'][0];
+    var options = {
+        'max-results': 50, //yt api max
+        // 'orderby': 'published', //this cause error when exceeding 500 entries
+        'start-index': 1
+    };
+    var videos = [];
+
+    (function get() {
+        yt.user(userId).uploads(options, function(err, data) {
+            total = data.totalItems;
+            if (err) {
+                defer.reject(err);
+            }
+            //get all videos for playlist
+            videos = videos.concat(data.items);
+            if (total > options['start-index'] + 49) {
+                options['start-index'] += options['max-results'];
+                get();
+            } else {
+                defer.resolve(videos);
+            }
+        });
+    })();
+    return defer.promise;
 }
-
-// function parseLists(items) {
-//     //show options to the client
-//     var titles = items.map(function(pl) {
-//         return pl.title[0];
-//     });
-//     //client selects
-//     showMenu(titles, function(index) {
-//         var item = items[Number(index)];
-
-//         //download
-//         getPlaylist(item);
-//     });
-// }
 
 function getSelection(index) {
     return queryResults[Number(index)];
@@ -124,70 +165,94 @@ function showMenu(titles) {
 
 
 function getPlaylist(playlist) {
+    var defer = q.defer();
     //id > 'yt:playlistId'
 
     var id = playlist['yt:playlistId'][0];
-    var total = Number(playlist['yt:countHint'][0]);
+    total = Number(playlist['yt:countHint'][0]);
     var videos = [];
     var maxResults = 50; //youtube api max
 
     var options = {
         'max-results': maxResults,
-        'orderBy': 'published',
+        'orderby': 'published',
         'start-index': 1
     };
 
-    get();
-
-    function get() {
+    (function get() {
         yt.feeds.playlist(id, options, function(error, data) {
-            if (error) throw error;
+            if (error) {
+                defer.reject(error);
+            }
             //get all videos for playlist
             videos = videos.concat(data.items);
             if (total > options['start-index'] + 49) {
                 options['start-index'] += maxResults;
                 get();
             } else {
-                parseVideos(videos);
+                defer.resolve(videos);
             }
         });
-    }
+    })();
+    return defer.promise;
 }
 
 
 function parseVideos(videos) {
-
     //id = data[]>video.id
     //title = data[]>video.title
-    var vids = videos.map(function(vid) {
-        return {
-            title: vid.video.title,
-            id: vid.video.id
-        };
-    });
+    var vids;
+    //slight inconsitency in response data =(
+    if (type === 'playlist') {
+        vids = videos.map(function(vid) {
+            return {
+                title: vid.video.title,
+                id: vid.video.id
+            };
+        });
+    } else {
+        vids = videos.map(function(vid) {
+            return {
+                title: vid.title,
+                id: vid.id
+            };
+        });
+    }
 
     // console.log('Got %d videos', vids.length);
-    // fs.writeFile('./videos.json', JSON.stringify(vids), function(err) {
+    // fs.writeFile('./test3.json', JSON.stringify(vids), function(err) {
     //     if (err) throw err;
     //     console.log('saved videos.json');
     // });
+    return vids;
+}
 
+function downloadSetup(vids) {
+    var defer = q.defer();
     //remove menu
     clearScreen();
+
+    //stat init
+    console.log('Downloading %d videos > %s'.red, total, downloadFolder);
 
     //make the download folder first!
     fs.mkdir(path.join(__dirname, downloadFolder), function() {
         // timer = setInterval(++duration, 1000);
-        downloadVids(vids, 0, end);
+        defer.resolve(vids);
     });
+    return defer.promise;
 }
+
+
+
+
 var duration = 0;
 // var timer;
 var children = [];
 
-function downloadVids(videos, counter, cb) {
+function downloadVids(videos, counter, defer) {
     if (counter >= videos.length) {
-        return cb();
+        return defer.resolve();
     }
     var vid = videos[counter];
     var vidInfo; //will get this info when child sends it
@@ -219,7 +284,7 @@ function downloadVids(videos, counter, cb) {
     });
 
     child.on('exit', function() {
-        downloadVids(videos, ++counter, cb);
+        downloadVids(videos, ++counter, defer);
     });
 }
 
@@ -250,4 +315,4 @@ function clearScreen() {
 }
 
 
-//TODO: need to add a date checker to warn user youtube api v2 is going to be depracated
+//TODO: is there a way to send values as individual arguments in promises?
