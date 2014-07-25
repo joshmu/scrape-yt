@@ -67,12 +67,12 @@ defer.promise
     .then(getSelection)
     .then(playlistOrChannel)
     .then(parseVideos)
-    .then(function(vids){
-        fs.writeFile('./test4.json', JSON.stringify(vids), function(){
-            console.log('saved');
-        });
-        throw new Error('need to remove "then" from flow');
-    })
+    // .then(function(vids){
+    //     fs.writeFile('./test4.json', JSON.stringify(vids), function(){
+    //         console.log('saved');
+    //     });
+    //     throw new Error('need to remove "then" from flow');
+    // })
     .then(downloadSetup)
     .then(function(vids) {
         var defer = q.defer();
