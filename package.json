@@ -1,0 +1,29 @@
+{
+  "name": "scrape-youtube",
+  "version": "0.0.1",
+  "description": "Utility to download a  playlist or uploads from a user on Youtube.",
+  "main": "scrape.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "youtube",
+    "download",
+    "mu",
+    "playlist",
+    "video"
+  ],
+  "author": "Josh Mu",
+  "license": "ISC",
+  "dependencies": {
+    "colors": "^0.6.2",
+    "node-notifier": "^3.0.6",
+    "path": "^0.4.9",
+    "progress": "^1.1.7",
+    "prompt": "^0.2.13",
+    "q": "^1.0.1",
+    "terminal-menu": "^0.3.2",
+    "youtube-feeds": "^2.3.0",
+    "ytdl-core": "^0.2.3"
+  }
+}
