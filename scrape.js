@@ -43,7 +43,6 @@ var type;
 var defer = q.defer();
 
 //ask user for search
-//TODO: add menu selection for playlist or channel
 prompt.get([{
     name: 'q',
     required: true,
@@ -72,6 +71,7 @@ defer.promise
         fs.writeFile('./test4.json', JSON.stringify(vids), function(){
             console.log('saved');
         });
+        throw new Error('need to remove "then" from flow');
     })
     .then(downloadSetup)
     .then(function(vids) {
@@ -88,6 +88,10 @@ defer.promise
 var queryResults;
 
 function parseList(items) {
+    //hack 'channel'
+    if(type !== 'playlist') {
+        type = 'channel';
+    }
     queryResults = items;
     return queryResults.map(function(i) {
         return i.title[0];
@@ -103,8 +107,6 @@ var total;
 //TODO: create a 'get' object which stores methods to retrieve channel and playlist data
 //TODO: use 'get' as a means to route choices
 function getChannel(item) {
-    type = 'channel';       //hack to fix 'channel' type
-
     var defer = q.defer();
 
     var userId = item.author[0]['yt:userId'][0];
