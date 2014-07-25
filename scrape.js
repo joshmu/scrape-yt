@@ -267,7 +267,7 @@ function downloadVids(videos, counter, defer) {
     var url = 'https://www.youtube.com/watch?v=' + vid.id;
     var downloadPath = path.join(__dirname, downloadFolder, vid.title + '.mp4');
     var args = [url, downloadPath];
-    var child = childProcess.fork(path.join(__dirname, 'vid.js'), args);
+    var child = childProcess.fork(path.join(__dirname, 'download.js'), args);
     children.push(child);
 
     var completion;
