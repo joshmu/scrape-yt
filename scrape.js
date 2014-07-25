@@ -142,7 +142,7 @@ function showMenu(titles) {
         y: 2
     });
 
-    menu.write('SELECT PLAYLIST');
+    menu.write('SELECT ' + type.toUpperCase());
     menu.write('\n---------------\n');
 
     titles.forEach(function(title) {
@@ -315,4 +315,4 @@ function clearScreen() {
 }
 
 
-//TODO: is there a way to send values as individual arguments in promises?
+//TODO: is there a way to send values as individual arguments in promises
