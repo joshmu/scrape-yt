@@ -43,6 +43,7 @@ var type;
 var defer = q.defer();
 
 //ask user for search
+//TODO: add menu selection for playlist or channel
 prompt.get([{
     name: 'q',
     required: true,
@@ -98,7 +99,12 @@ function playlistOrChannel(item) {
 }
 
 var total;
+
+//TODO: create a 'get' object which stores methods to retrieve channel and playlist data
+//TODO: use 'get' as a means to route choices
 function getChannel(item) {
+    type = 'channel';       //hack to fix 'channel' type
+
     var defer = q.defer();
 
     var userId = item.author[0]['yt:userId'][0];
