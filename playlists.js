@@ -1,17 +1,7 @@
-/**
-*
-* https://gdata.youtube.com/feeds/api/playlists/snippets?
-    q=GoogleDevelopers
-    &start-index=11
-    &max-results=10
-    &v=2
-*
-**/
-
-/*===================================================================
-=            grab all the youtube playlists by relevance            =
-===================================================================*/
-"use strict";
+/*=======================================================================
+=            grab all Youtube videos from a playlist/channel            =
+=======================================================================*/
+'use strict';
 
 var http = require('http');
 var querystring = require('querystring');
@@ -19,17 +9,27 @@ var xmlParser = require('xml2js').parseString;
 var prompt = require('prompt');
 var q = require('q');
 
-var url = 'http://gdata.youtube.com/feeds/api/playlists/snippets?';
-var options = {
+var youtubeApi = 'http://gdata.youtube.com/feeds/api/';
+var playlistSearch = 'playlists/snippets?';
+var channelSearch = 'channels?';
+var query = {
     v: 2,
     'orderBy': 'relevance'
 };
 
-module.exports = function askYt(query, cb) {
-    extender(options, query);
+module.exports = function (search, type) {
+    //creating a promise which we will give back
+    var defer = q.defer();
+
+    //add search to query object
+    query.q = search;
 
     //convert options object to a query string
-    var qs = querystring.stringify(options);
+    var qs = querystring.stringify(query);
+
+    //search url based on type specified
+    var search = type === 'playlist' ? playlistSearch : channelSearch;
+    var url = youtubeApi + search;
     var searchUrl = url + qs;
     var content = '';
 
@@ -48,11 +48,10 @@ module.exports = function askYt(query, cb) {
 
         res.on('end', function() {
             parseResponse(content)
-                .then(cb)
-                .then(null, console.error)
-                .done();
+                .then(defer.resolve, defer.reject)
         });
     });
+    return defer.promise;
 };
 
 /**
@@ -70,18 +69,4 @@ function parseResponse(content) {
         defer.resolve(result.feed.entry);
     });
     return defer.promise;
-}
-
-
-/**
- * extend an object's properties with another object
- * @param  {Object} obj1 > primary object to be extended
- * @param  {Object} obj2
- */
-function extender(obj1, obj2) {
-    for(var key in obj2) {
-        if(obj2.hasOwnProperty(key)) {
-            obj1[key] = obj2[key];
-        }
-    }
 }

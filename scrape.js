@@ -1,12 +1,15 @@
+'use strict';
+
 var yt = require('youtube-feeds');
 var prompt = require('prompt');
 var createMenu = require('terminal-menu');
-var playlister = require('./playlists');
+var searchYoutube = require('./playlists');
 var fs = require('fs');
 var childProcess = require('child_process');
 var path = require('path');
 var colors = require('colors');
 var ProgressBar = require('progress');
+var q = require('q');
 
 prompt.message = '';
 prompt.delimiter = '';
@@ -16,32 +19,81 @@ prompt.start();
 //clear screen
 clearScreen();
 
+//download channel or playlist
+var type;
+
+//setup a promise chain
+var defer = q.defer();
+
 //ask user for search
 prompt.get([{
     name: 'q',
     required: true,
     description: 'Search for > '.green
+}, {
+    name: 'type',
+    required: true,
+    description: 'Playlist or channel?'.green
 }], function(err, results) {
-    if (err) throw err;
-    playlister(results, parseLists);
+    if (err) {
+        defer.reject(err);
+    }
+    defer.resolve(results);
 });
 
-function parseLists(playlists) {
-    //show options to the client
-    var titles = playlists.map(function(pl) {
-        return pl.title[0];
-    });
-    //client selects
-    showMenu(titles, function(label) {
-        var playlist = playlists[Number(label)];
+defer.promise
+    .then(searchYoutube)
+    .then(parseList)
+    .then(showMenu)
+    .then(getSelection)
+    .then(playlistOrChannel);
 
-        //download
-        getPlaylist(playlist);
+function search(results) {
+    //store type selected
+    type = results.type.toLowerCase();
+    //search returns a promise =)
+    return searchYoutube(results.q, type);
+}
+
+// store query results
+var queryResults;
+
+function parseList(items) {
+    queryResults = items;
+    return queryResults.map(function(i) {
+        return i.title[0];
     });
 }
 
+function playlistOrChannel(item) {
+    return type === 'playlist' ? getPlaylist(item) : getChannel(item);
+}
+
+function getChannel(item) {
+    console.log('getting channel for ', item);
+}
+
+// function parseLists(items) {
+//     //show options to the client
+//     var titles = items.map(function(pl) {
+//         return pl.title[0];
+//     });
+//     //client selects
+//     showMenu(titles, function(index) {
+//         var item = items[Number(index)];
+
+//         //download
+//         getPlaylist(item);
+//     });
+// }
+
+function getSelection(index) {
+    return queryResults[Number(index)];
+}
+
 var downloadFolder = 'downloads'; //placeholder name
-function showMenu(titles, cb) {
+function showMenu(titles) {
+    var defer = q.defer();
 
     var menu = createMenu({
         width: 60,
@@ -57,17 +109,19 @@ function showMenu(titles, cb) {
         menu.add(title);
     });
 
-    menu.on('select', function(title, label) {
+    menu.on('select', function(title, index) {
         downloadFolder = title;
         menu.close();
-        cb(label);
+        defer.resolve(index);
     });
 
     clearScreen();
 
     menu.createStream().pipe(process.stdout);
 
+    return defer.promise;
 }
+
 
 function getPlaylist(playlist) {
     //id > 'yt:playlistId'
